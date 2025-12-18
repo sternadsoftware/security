@@ -16,11 +16,11 @@ import java.util.Map;
 
 import org.apache.http.HttpStatus;
 import org.awaitility.Awaitility;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.opensearch.security.support.ConfigConstants;
-import org.opensearch.test.framework.TestSecurityConfig;
 import org.opensearch.test.framework.cluster.ClusterManager;
 import org.opensearch.test.framework.cluster.LocalCluster;
 import org.opensearch.test.framework.cluster.TestRestClient;
@@ -44,9 +44,8 @@ public class PBKDF2CustomConfigHashingTests extends HashingTests {
         function = randomFrom(List.of("SHA224", "SHA256", "SHA384", "SHA512"));
         iterations = randomFrom(List.of(32000, 64000, 128000, 256000));
         length = randomFrom(List.of(128, 256, 512));
-
-        TestSecurityConfig.User ADMIN_USER = new TestSecurityConfig.User("admin").roles(ALL_ACCESS)
-            .hash(generatePBKDF2Hash("secret", function, iterations, length));
+        var password = CryptoServicesRegistrar.isInApprovedOnlyMode() ? "dtekVF0vEAA9FNvm#KMkTwMN" : "secret";
+        ADMIN_USER = ADMIN_USER.hash(generatePBKDF2Hash(password, function, iterations, length)).password("dtekVF0vEAA9FNvm#KMkTwMN");
         cluster = new LocalCluster.Builder().clusterManager(ClusterManager.SINGLENODE)
             .authc(AUTHC_HTTPBASIC_INTERNAL)
             .users(ADMIN_USER)
@@ -68,7 +67,7 @@ public class PBKDF2CustomConfigHashingTests extends HashingTests {
             .build();
         cluster.before();
 
-        try (TestRestClient client = cluster.getRestClient(ADMIN_USER.getName(), "secret")) {
+        try (TestRestClient client = cluster.getRestClient(ADMIN_USER.getName(), password)) {
             Awaitility.await()
                 .alias("Load default configuration")
                 .until(() -> client.securityHealth().getTextFromJsonBody("/status"), equalTo("UP"));

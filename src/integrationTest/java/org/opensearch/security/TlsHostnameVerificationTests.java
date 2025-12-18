@@ -12,6 +12,7 @@ package org.opensearch.security;
 import java.util.Map;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,7 +58,11 @@ public class TlsHostnameVerificationTests {
             cluster.before();
             Assert.fail("Cluster should not start, an exception expected");
         } catch (Exception e) {
-            logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found");
+            if (CryptoServicesRegistrar.isInApprovedOnlyMode()) {
+                logsRule.assertThatStackTraceContain("No subject alternative name found matching IP address 127.0.0.1");
+            } else {
+                logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found");
+            }
         }
     }
 }

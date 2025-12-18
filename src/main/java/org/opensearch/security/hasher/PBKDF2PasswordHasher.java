@@ -16,6 +16,7 @@ import java.nio.CharBuffer;
 import com.password4j.CompressedPBKDF2Function;
 import com.password4j.HashingFunction;
 import com.password4j.Password;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
 
 class PBKDF2PasswordHasher extends AbstractPasswordHasher {
 
@@ -40,6 +41,11 @@ class PBKDF2PasswordHasher extends AbstractPasswordHasher {
     public boolean check(char[] password, String hash) {
         checkPasswordNotNullOrEmpty(password);
         checkHashNotNullOrEmpty(hash);
+
+        if (CryptoServicesRegistrar.isInApprovedOnlyMode() && password.length < 14) {
+            return false;
+        }
+
         CharBuffer passwordBuffer = CharBuffer.wrap(password);
         try {
             return Password.check(passwordBuffer, hash).with(getPBKDF2FunctionFromHash(hash));

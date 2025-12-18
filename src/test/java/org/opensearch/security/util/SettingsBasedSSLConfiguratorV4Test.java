@@ -57,6 +57,8 @@ import org.apache.http.ssl.PrivateKeyDetails;
 import org.apache.http.ssl.PrivateKeyStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
+import org.bouncycastle.tls.TlsFatalAlert;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -144,7 +146,9 @@ public class SettingsBasedSSLConfiguratorV4Test {
                 CloseableHttpClient httpClient = HttpClients.custom().setSSLSocketFactory(sslConfig.toSSLConnectionSocketFactory()).build()
             ) {
 
-                thrown.expect(SSLHandshakeException.class);
+                Class<? extends Throwable> exceptionClass =
+                    CryptoServicesRegistrar.isInApprovedOnlyMode() ? TlsFatalAlert.class : SSLHandshakeException.class;
+                thrown.expect(exceptionClass);
 
                 try (CloseableHttpResponse response = httpClient.execute(new HttpGet(testServer.getUri()))) {
                     Assert.fail("Connection should have failed due to wrong trust");
@@ -387,7 +391,9 @@ public class SettingsBasedSSLConfiguratorV4Test {
                 CloseableHttpClient httpClient = HttpClients.custom().setSSLSocketFactory(sslConfig.toSSLConnectionSocketFactory()).build()
             ) {
 
-                thrown.expect(SSLHandshakeException.class);
+                Class<? extends Throwable> exceptionClass =
+                    CryptoServicesRegistrar.isInApprovedOnlyMode() ? TlsFatalAlert.class : SSLHandshakeException.class;
+                thrown.expect(exceptionClass);
 
                 try (CloseableHttpResponse response = httpClient.execute(new HttpGet(testServer.getUri()))) {
                     Assert.fail("Connection should have failed due to wrong trust");

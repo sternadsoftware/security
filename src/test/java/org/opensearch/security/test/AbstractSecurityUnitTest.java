@@ -59,6 +59,7 @@ import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
@@ -177,11 +178,13 @@ public abstract class AbstractSecurityUnitTest extends RandomizedTest {
             SSLContext sslContext = sslContextBuilder.build();
 
             HttpHost httpHost = new HttpHost("https", info.httpHost, info.httpPort);
-
+            String[] tlsVersions = CryptoServicesRegistrar.isInApprovedOnlyMode()
+                                   ? new String[] { "TLSv1.2", "TLSv1.3" }
+                                   : new String[] { "TLSv1", "TLSv1.1", "TLSv1.2", "SSLv3" };
             RestClientBuilder restClientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(builder -> {
                 TlsStrategy tlsStrategy = ClientTlsStrategyBuilder.create()
                     .setSslContext(sslContext)
-                    .setTlsVersions(new String[] { "TLSv1", "TLSv1.1", "TLSv1.2", "SSLv3" })
+                    .setTlsVersions(tlsVersions)
                     .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
                     // See please https://issues.apache.org/jira/browse/HTTPCLIENT-2219
                     .setTlsDetailsFactory(new Factory<SSLEngine, TlsDetails>() {

@@ -39,6 +39,7 @@ import com.google.common.collect.HashMultimap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import org.ldaptive.ssl.DefaultHostnameVerifier;
 import org.opensearch.OpenSearchSecurityException;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.core.common.Strings;
@@ -201,6 +202,20 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
             config.setConnectionInitializer(new BindConnectionInitializer(bindDn, new Credential(password)));
 
             DefaultConnectionFactory connFactory = new DefaultConnectionFactory(config);
+
+            // Register custom socket factory for SNI hostname verification with BouncyCastle FIPS if SSL is enabled
+            if (config.getLdapUrl() != null && config.getLdapUrl().startsWith("ldaps:")) {
+                // Extract hostname from LDAP URL and set in ThreadLocal for SNI
+                String ldapUrl = config.getLdapUrl();
+                int protocolEnd = ldapUrl.indexOf("://");
+                if (protocolEnd > 0) {
+                    String hostPort = ldapUrl.substring(protocolEnd + 3);
+                    String hostname = hostPort.contains(":") ? hostPort.substring(0, hostPort.indexOf(":")) : hostPort;
+                    org.opensearch.security.auth.ldap2.SNISettingTLSSocketFactory.setHostname(hostname);
+                }
+                configureCustomSocketFactory(connFactory);
+            }
+
             connection = connFactory.getConnection();
 
             connection.open();
@@ -257,6 +272,12 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
                     log.trace("Connect to {}", config.getLdapUrl());
                 }
 
+                // Set hostname in ThreadLocal for SNI before SSL configuration
+                // This is needed for BouncyCastle FIPS hostname verification
+                if (enableSSL) {
+                    org.opensearch.security.auth.ldap2.SNISettingTLSSocketFactory.setHostname(split[0]);
+                }
+
                 configureSSL(config, settings, configPath);
 
                 final String bindDn = settings.get(ConfigConstants.LDAP_BIND_DN, null);
@@ -302,6 +323,14 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
                 }
 
                 DefaultConnectionFactory connFactory = new DefaultConnectionFactory(config);
+
+                // Register custom socket factory for SNI hostname verification with BouncyCastle FIPS
+                // This addresses a known issue where JNDI LDAP doesn't pass hostname to SSLSocketFactory
+                // See: https://github.com/bcgit/bc-java/issues/460
+                if (enableSSL) {
+                    configureCustomSocketFactory(connFactory);
+                }
+
                 connection = connFactory.getConnection();
 
                 connection.open();
@@ -462,6 +491,14 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
         }
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void configureCustomSocketFactory(DefaultConnectionFactory connFactory) {
+        Map<String, Object> props = new HashMap<>();
+        props.put("java.naming.ldap.factory.socket", "org.opensearch.security.auth.ldap2.SNISettingTLSSocketFactory");
+        final org.ldaptive.provider.ProviderConfig providerConfig = connFactory.getProvider().getProviderConfig();
+        providerConfig.setProperties(props);
+    }
+
     private static void configureSSL(final ConnectionConfig config, final Settings settings, final Path configPath) throws Exception {
 
         final boolean isDebugEnabled = log.isDebugEnabled();
@@ -607,6 +644,8 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
 
                 System.setProperty(COM_SUN_JNDI_LDAP_OBJECT_DISABLE_ENDPOINT_IDENTIFICATION, "true");
 
+            } else {
+                sslConfig.setHostnameVerifier(new DefaultHostnameVerifier());
             }
 
             final List<String> enabledCipherSuites = settings.getAsList(ConfigConstants.LDAPS_ENABLED_SSL_CIPHERS, Collections.emptyList());

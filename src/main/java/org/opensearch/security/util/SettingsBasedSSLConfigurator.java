@@ -43,6 +43,7 @@ import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.security.ssl.util.SSLConfigConstants;
 import org.opensearch.security.support.PemKeyReader;
@@ -78,7 +79,8 @@ public class SettingsBasedSSLConfigurator {
     public static final String VERIFY_HOSTNAMES = "verify_hostnames";
     public static final String TRUST_ALL = "trust_all";
 
-    private static final List<String> DEFAULT_TLS_PROTOCOLS = ImmutableList.of("TLSv1.2", "TLSv1.1");
+    private static final List<String> DEFAULT_TLS_PROTOCOLS =
+        CryptoServicesRegistrar.isInApprovedOnlyMode() ? ImmutableList.of("TLSv1.3", "TLSv1.2") : ImmutableList.of("TLSv1.2", "TLSv1.1");
 
     private SSLContextBuilder sslContextBuilder;
     private final Settings settings;
