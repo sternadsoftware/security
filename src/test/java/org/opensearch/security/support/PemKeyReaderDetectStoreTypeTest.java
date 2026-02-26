@@ -15,13 +15,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.UncheckedIOException;
 import java.security.KeyStore;
-import java.security.Security;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.bouncycastle.crypto.CryptoServicesRegistrar;
-import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -32,25 +29,19 @@ import static org.junit.Assume.assumeFalse;
 
 public class PemKeyReaderDetectStoreTypeTest {
 
-    static {
-        if (Security.getProvider("BCFIPS") == null) {
-            Security.addProvider(new BouncyCastleFipsProvider());
-        }
-    }
-
     @Rule
     public TemporaryFolder tempDir = new TemporaryFolder();
 
     @Test
     public void detectsJks() throws Exception {
-        assumeFalse("JKS truststores are not supported in FIPS mode", CryptoServicesRegistrar.isInApprovedOnlyMode());
+        assumeFalse("JKS truststores are not supported in FIPS mode", FipsMode.isEnabled());
         File file = storeFile("JKS");
         assertThat(PemKeyReader.extractStoreType(file.getAbsolutePath(), null), equalTo(PemKeyReader.JKS));
     }
 
     @Test
     public void detectsPkcs12() throws Exception {
-        assumeFalse("PKCS12 truststores are not supported in FIPS mode", CryptoServicesRegistrar.isInApprovedOnlyMode());
+        assumeFalse("PKCS12 truststores are not supported in FIPS mode", FipsMode.isEnabled());
         File file = storeFile("PKCS12");
         assertThat(PemKeyReader.extractStoreType(file.getAbsolutePath(), null), equalTo(PemKeyReader.PKCS12));
     }
@@ -64,7 +55,7 @@ public class PemKeyReaderDetectStoreTypeTest {
     @Test
     public void explicitTypeSkipsDetection() throws Exception {
         // file content is irrelevant when type is explicitly provided
-        assumeFalse("PKCS12 truststores are not supported in FIPS mode", CryptoServicesRegistrar.isInApprovedOnlyMode());
+        assumeFalse("PKCS12 truststores are not supported in FIPS mode", FipsMode.isEnabled());
         File file = tempDir.newFile("irrelevant.bin");
         try (FileOutputStream fos = new FileOutputStream(file)) {
             fos.write(new byte[] { 0x00, 0x01, 0x02, 0x03 });
