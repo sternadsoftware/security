@@ -1,0 +1,34 @@
+# Minimal DIT for the local LDAPS mTLS stand-in (LocalLdapMtlsServer / LDAP_FIPS_LOCAL_MTLS_GUIDE.md).
+# Authentication only — no groups/roles.
+
+dn: o=TEST
+objectClass: top
+objectClass: organization
+o: TEST
+
+dn: ou=people,o=TEST
+objectClass: top
+objectClass: organizationalUnit
+ou: people
+
+# Service account OpenSearch binds as (bind_dn / password).
+dn: cn=opensearch-bind,ou=people,o=TEST
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+cn: opensearch-bind
+sn: bind
+uid: opensearch-bind
+userPassword: bindpassword
+
+# End user to authenticate as (LDAP_USER / LDAP_PASS).
+dn: cn=Test User,ou=people,o=TEST
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+cn: Test User
+sn: User
+uid: testuser
+userPassword: testpassword

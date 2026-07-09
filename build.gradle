@@ -991,3 +991,17 @@ tasks.register("updateVersion") {
         ant.replaceregexp(file: 'build.gradle', match: '"opensearch.version", "\\d.*"', replace: '"opensearch.version", "' + newVersion.tokenize('-')[0] + '-SNAPSHOT"', flags: 'g', byline: true)
     }
 }
+
+// Local LDAPS mTLS stand-in for manual FIPS/LDAP testing — real LDAP bind + required client cert.
+// See LDAP_FIPS_LOCAL_MTLS_GUIDE.md. Defaults resolve from src/test/resources/ldap/; override with -D.
+tasks.register('ldapMtlsServer', JavaExec) {
+    group = 'verification'
+    description = 'Runs a local UnboundID LDAPS mTLS stand-in (real bind + required client cert). See LDAP_FIPS_LOCAL_MTLS_GUIDE.md.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.opensearch.security.auth.ldap.srv.LocalLdapMtlsServer'
+    ['ldaps.port', 'server.keystore', 'server.keystore.password', 'truststore', 'truststore.password', 'ldif', 'need.client.auth'].each { k ->
+        if (System.getProperty(k) != null) {
+            systemProperty(k, System.getProperty(k))
+        }
+    }
+}
